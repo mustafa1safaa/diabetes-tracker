@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تطبيق السكري</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      padding: 10px;
+    }
+    .card {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-bottom: 15px;
+      padding: 10px;
+    }
+    .btn {
+      padding: 8px 15px;
+      border-radius: 5px;
+    }
+    .reading-card {
+      background: #f9f9f9;
+      border: 1px solid #eee;
+      padding: 10px;
+      margin-bottom: 8px;
+      border-radius: 5px;
+    }
+    .reading-high { border-left: 4px solid #dc3545; }
+    .reading-low { border-left: 4px solid #ffc107; }
+    .reading-normal { border-left: 4px solid #28a745; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h3 class="text-center">تطبيق متابعة السكري</h3>
+    </div>
+
+    <div class="card">
+      <div class="d-flex justify-content-around">
+        <button class="btn btn-primary" onclick="showTab('readings')">القراءات</button>
+        <button class="btn btn-secondary" onclick="showTab('history')">السجل</button>
+        <button class="btn btn-info" onclick="showTab('advice')">النصائح</button>
+      </div>
+    </div>
+
+    <div id="readingsTab">
+      <div class="card">
+        <h4>إضافة قراءة جديدة</h4>
+        <div>
+          <label>وقت الفحص:</label>
+          <select id="timeSlot" class="form-control mb-2">
+            <option value="fasting">الصيام</option>
+            <option value="breakfast">بعد الفطور</option>
+            <option value="lunch">بعد الغداء</option>
+            <option value="dinner">بعد العشاء</option>
+          </select>
+          
+          <label>قراءة السكر (mg/dL):</label>
+          <input type="number" id="glucoseValue" class="form-control mb-2" placeholder="أدخل القراءة">
+          
+          <label>ملاحظات:</label>
+          <textarea id="readingNotes" class="form-control mb-2" placeholder="أي ملاحظات إضافية"></textarea>
+          
+          <button class="btn btn-success w-100" onclick="saveReading()">حفظ القراءة</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4>قراءات اليوم</h4>
+        <div id="todayReadings">
+          <p class="text-muted text-center">جارٍ التحميل...</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="historyTab" style="display:none">
+      <div class="card">
+        <h4>الإحصائيات</h4>
+        <div>
+          <p>إجمالي القراءات: <span id="totalReadings">0</span></p>
+          <p>متوسط السكر: <span id="averageGlucose">0</span> mg/dL</p>
+          <p>آخر قراءة: <span id="lastReading">-</span></p>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h4>آخر 7 أيام</h4>
+        <div id="weeklyReadings"></div>
+      </div>
+    </div>
+
+    <div id="adviceTab" style="display:none">
+      <div class="card">
+        <h4>نصائح مهمة</h4>
+        <div>
+          <div class="alert alert-warning">• احرص على قياس السكر بانتظام</div>
+          <div class="alert alert-info">• تناول الأدوية في مواعيدها</div>
+          <div class="alert alert-success">• حافظ على نظام غذائي صحي</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // متغير لتخزين القراءات
+    var glucoseReadings = [];
+    
+    // عند تحميل الصفحة
+    window.onload = function() {
+      loadReadings();
+      showTab('readings');
+    };
+    
+    // تحميل القراءات من الذاكرة المحلية
+    function loadReadings() {
+      var saved = localStorage.getItem('diabetesReadings');
+      if (saved) {
+        glucoseReadings = JSON.parse(saved);
+        updateAllDisplays();
+      }
+    }
+    
+    // حفظ القراءات في الذاكرة المحلية
+    function saveReadings() {
+      localStorage.setItem('diabetesReadings', JSON.stringify(glucoseReadings));
+      updateAllDisplays();
+    }
+    
+    // تبديل التبويبات
+    function showTab(tabName) {
+      document.getElementById('readingsTab').style.display = 'none';
+      document.getElementById('historyTab').style.display = 'none';
+      document.getElementById('adviceTab').style.display = 'none';
+      document.getElementById(tabName + 'Tab').style.display = 'block';
+    }
+    
+    // حفظ قراءة جديدة
+    function saveReading() {
+      var timeSlot = document.getElementById('timeSlot').value;
+      var glucoseValue = document.getElementById('glucoseValue').value;
+      var notes = document.getElementById('readingNotes').value;
+      
+      if (!glucoseValue || glucoseValue < 50 || glucoseValue > 500) {
+        alert('القراءة يجب أن تكون بين 50 و 500 mg/dL');
+        return;
+      }
+      
+      var newReading = {
+        id: Date.now(),
+        date: new Date().toLocaleDateString('ar-EG'),
+        time: new Date().toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit'}),
+        timeSlot: timeSlot,
+        glucose: parseInt(glucoseValue),
+        notes: notes
+      };
+      
+      glucoseReadings.push(newReading);
+      saveReadings();
+      
+      // مسح الحقول بعد الحفظ
+      document.getElementById('glucoseValue').value = '';
+      document.getElementById('readingNotes').value = '';
+    }
+    
+    // تحديث جميع العروض
+    function updateAllDisplays() {
+      updateTodayReadings();
+      updateStatistics();
+      updateWeeklyReadings();
+    }
+    
+    // عرض قراءات اليوم
+    function updateTodayReadings() {
+      var today = new Date().toLocaleDateString('ar-EG');
+      var container = document.getElementById('todayReadings');
+      container.innerHTML = '';
+      
+      var todayReadings = glucoseReadings.filter(r => r.date === today);
+      
+      if (todayReadings.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">لا توجد قراءات لليوم</p>';
+        return;
+      }
+      
+      todayReadings.reverse().forEach(reading => {
+        var statusClass = getGlucoseStatus(reading.glucose).class;
+        var card = document.createElement('div');
+        card.className = `reading-card reading-${statusClass}`;
+        card.innerHTML = `
+          <div class="d-flex justify-content-between">
+            <strong>${reading.timeSlot}</strong>
+            <small>${reading.time}</small>
+          </div>
+          <div class="h4 my-2">${reading.glucose} mg/dL</div>
+          ${reading.notes ? `<div class="text-muted">${reading.notes}</div>` : ''}
+        `;
+        container.appendChild(card);
+      });
+    }
+    
+    // تحديث الإحصائيات
+    function updateStatistics() {
+      document.getElementById('totalReadings').textContent = glucoseReadings.length;
+      
+      if (glucoseReadings.length > 0) {
+        // حساب المتوسط
+        var total = glucoseReadings.reduce((sum, r) => sum + r.glucose, 0);
+        document.getElementById('averageGlucose').textContent = Math.round(total / glucoseReadings.length);
+        
+        // آخر قراءة
+        var last = glucoseReadings[glucoseReadings.length - 1];
+        document.getElementById('lastReading').textContent = 
+          `${last.glucose} mg/dL (${last.timeSlot} - ${last.date})`;
+      }
+    }
+    
+    // عرض قراءات الأسبوع
+    function updateWeeklyReadings() {
+      var container = document.getElementById('weeklyReadings');
+      container.innerHTML = '';
+      
+      if (glucoseReadings.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">لا توجد قراءات مسجلة</p>';
+        return;
+      }
+      
+      // تجميع القراءات حسب التاريخ
+      var readingsByDate = {};
+      glucoseReadings.forEach(r => {
+        if (!readingsByDate[r.date]) readingsByDate[r.date] = [];
+        readingsByDate[r.date].push(r);
+      });
+      
+      // عرض آخر 7 أيام
+      var dates = Object.keys(readingsByDate).sort().reverse().slice(0, 7);
+      
+      dates.forEach(date => {
+        var readings = readingsByDate[date];
+        var avg = Math.round(readings.reduce((s, r) => s + r.glucose, 0) / readings.length);
+        var status = getGlucoseStatus(avg);
+        
+        var card = document.createElement('div');
+        card.className = `reading-card reading-${status.class} mb-2`;
+        card.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <strong>${date}</strong>
+              <div class="small text-muted">${readings.length} قراءة</div>
+            </div>
+            <div class="h5 mb-0" style="color:${status.color}">
+              ${avg} mg/dL
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+    
+    // تحديد حالة السكر
+    function getGlucoseStatus(glucose) {
+      if (glucose < 70) return { class: 'low', color: '#dc3545', label: 'منخفض' };
+      if (glucose > 180) return { class: 'high', color: '#fd7e14', label: 'مرتفع' };
+      return { class: 'normal', color: '#28a745', label: 'طبيعي' };
+    }
+  </script>
+</body>
+</html>
